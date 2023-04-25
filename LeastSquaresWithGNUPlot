@@ -1,0 +1,915 @@
+#include<iostream>
+#include <vector>
+#include<iomanip>
+#include<cmath>
+#include<random>
+#include<cstdio>
+
+#define GNUPLOT_LeastSquares "C:\\gnuplot\\bin\\gnuplot -persist"
+FILE* pipe = _popen(GNUPLOT_LeastSquares, "w");
+
+//This code is a modified code for AGLA on yandex context,
+//therefore certain unnecessary classes/methods still present
+//here. Nonetheless, they do not contradict to a present task.
+
+//I will add comments to necessary for this task and used fields.
+using namespace std;
+/**
+ * Exception to Dimension error case.
+ */
+class DimensionsError: public exception{
+public:
+    string getMessage(){
+        return "Error: the dimensional problem occurred\n";
+    }
+};
+
+/**
+ * Common Matrix class. It has vector of vectors of type double for represent the matrix and 2 dimensions(rows and columns).
+ */
+class Matrix{
+public:
+    /**
+     * Default constructor. All fields are nullified. Dimensions are 0 and matrix is empty.
+     */
+    Matrix(){
+        rows = 0;
+        columns = 0;
+        matrix = vector<vector<double>>(0, vector<double>(0));
+    }
+    /**
+     * Modified constructor for creating empty axb matrix.
+     * @param a rows
+     * @param b columns
+     */
+    Matrix(int a, int b){
+        rows = a;
+        columns = b;
+        matrix = vector<vector<double>>(a, vector<double>(columns));
+    }
+    /**
+     * Modified constructor for creating matrix by given vector of vectors of double.
+     * @param mat given vector of vectors of double
+     */
+    Matrix(vector<vector<double>> mat){
+        rows = mat.size();
+        columns = mat[0].size();
+        matrix = mat;
+    }
+    /**
+     * Overloaded operator = for assigning matrix to the second matrix.
+     * @param newMatrix source matrix.
+     * @return equivalent of assigned matrix to support row assigning(a=b=c).
+     */
+    Matrix& operator=(Matrix const& newMatrix){
+        this->columns = newMatrix.columns;
+        this->rows = newMatrix.rows;
+        this->matrix = newMatrix.matrix;
+        return *this;
+    }
+    /**
+     * Overloaded operator + to sum two matrices.
+     * @param secondMatrix matrix that will be added to the present.
+     * @return resulted matrix
+     */
+    Matrix operator+(Matrix const& secondMatrix){
+        Matrix newMatrix;
+        try{
+            if(this->columns != secondMatrix.columns || this->rows != secondMatrix.rows){
+                throw *new DimensionsError;
+            }
+            newMatrix.columns = this->columns;
+            newMatrix.rows = this->rows;
+            for(int i = 0; i < this->rows; ++i){
+                vector<double> row;
+                for(int j = 0; j < this->columns; ++j){
+                    double temp = this->matrix[i][j] + secondMatrix.matrix[i][j];
+                    row.push_back(temp);
+                }
+                newMatrix.matrix.push_back(row);
+            }
+        }
+        catch(DimensionsError& e){
+            cout << e.getMessage();
+        }
+        return newMatrix;
+    }
+    /**
+     * Overloaded operator - to find a difference matrix of two matrices.
+     * @param secondMatrix matrix that will be taken from the present.
+     * @return resulted matrix
+     */
+    Matrix operator-(Matrix const& secondMatrix){
+        Matrix newMatrix;
+        try{
+            if(this->columns != secondMatrix.columns || this->rows != secondMatrix.rows){
+                throw *new DimensionsError;
+            }
+            newMatrix.columns = this->columns;
+            newMatrix.rows = this->rows;
+            for(int i = 0; i < this->rows; ++i){
+                vector<double> row;
+                for(int j = 0; j < this->columns; ++j){
+                    double temp = this->matrix[i][j] - secondMatrix.matrix[i][j];
+                    row.push_back(temp);
+                }
+                newMatrix.matrix.push_back(row);
+            }
+        }
+        catch(DimensionsError& e){
+            cout << e.getMessage();
+        }
+        return newMatrix;
+    }
+    /**
+     * Overloaded operator * to multiply two matrices.
+     * @param secondMatrix matrix on that present matrix will be multiplied.
+     * @return resulted matrix
+     */
+    Matrix operator*(Matrix const& secondMatrix){
+        Matrix newMatrix;
+        try{
+            if(this->columns != secondMatrix.rows){
+                throw *new DimensionsError;
+            }
+            newMatrix.columns = secondMatrix.columns;
+            newMatrix.rows = this->rows;
+            for(int i = 0; i < this->rows; ++i){
+                vector<double> row;
+                for(int k = 0; k < secondMatrix.columns; ++k){
+                    double temp = 0;
+                    for(int j = 0; j < this->columns; ++j){
+                        temp+= this->matrix[i][j]*secondMatrix.matrix[j][k];
+                    }
+                    row.push_back(temp);
+                }
+
+                newMatrix.matrix.push_back(row);
+            }
+        }
+        catch(DimensionsError& e){
+            cout << e.getMessage();
+        }
+        return newMatrix;
+    }
+    /**
+     * Overloaded operator * to multyiply matrix by a const.
+     * @param factor factor.
+     * @return resulted matrix.
+     */
+    Matrix operator*(double factor){
+        Matrix newMatrix = *this;
+        for(int i = 0; i < rows;++i){
+            for(int j = 0; j < columns; ++j){
+                newMatrix.matrix[i][j] /= factor;
+            }
+        }
+        return newMatrix;
+    }
+    /**
+     * Method to transpose present matrix.
+     * @return transposed matrix.
+     */
+    Matrix transpose(){
+        Matrix transposedMatrix;
+        transposedMatrix.rows = this->columns;
+        transposedMatrix.columns = this->rows;
+        for(int j = 0; j < this->columns; ++j){
+            int temp;
+            vector<double> row;
+            for(int i = 0; i < this->rows; ++i){
+                temp = this->matrix[i][j];
+                row.push_back(temp);
+            }
+            transposedMatrix.matrix.push_back(row);
+        }
+        return transposedMatrix;
+    }
+    /**
+     * Overloaded operator >> for inputting matrix from data stream.
+     * @param in stream
+     * @param newMatrix matrix to input
+     * @return input stream to support multiple inputting(as example cin >> A >> B >> C;)
+     */
+    friend istream& operator>>(istream& in, Matrix& newMatrix){
+        in>>newMatrix.rows;
+        in>>newMatrix.columns;
+        for(int i = 0; i < newMatrix.rows; ++i){
+            vector<double> row;
+            for(int j = 0; j < newMatrix.columns; ++j){
+                double temp;
+                in>>temp;
+                row.push_back(temp);
+            }
+            newMatrix.matrix.push_back(row);
+        }
+        return in;
+    }
+    /**
+     * Overloaded operator >> for outputting matrix to data stream.
+     * @param in stream
+     * @param newMatrix matrix to output
+     * @return output stream to support multiple outputting(as example cout << A << B << C;)
+     */
+    friend ostream& operator<<(ostream& out, Matrix& newMatrix){
+        for(int i = 0; i < newMatrix.rows; ++i){
+            for(int j = 0; j < newMatrix.columns; ++j){
+                out <<fixed<<setprecision(2)<< (newMatrix.matrix[i][j]);
+                if(j != newMatrix.columns - 1){
+                    out << ' ';
+                }
+            }
+            out << endl;
+        }
+        return out;
+    }
+    /**
+     * Getter of matrix represented as vector of vectors of type double.
+     * @return matrix in vector form
+     */
+    vector<vector<double>> getMatrix(){
+        return matrix;
+    }
+    /**
+     * Getter for getting number of rows
+     * @return number of rows
+     */
+    int getRows() const{
+        return rows;
+    }
+    /**
+     * Getter for getting number of columns
+     * @return number of columns
+     */
+    int getColumns() const{
+        return columns;
+    }
+protected:
+    int rows;
+    int columns;
+    vector<vector<double>> matrix;
+};
+/**
+ * Class for square matrix that is inherited from common matrix class.
+ */
+class SquareMatrix: public Matrix{
+public:
+    SquareMatrix(int a):Matrix(a,a){}
+
+    /**
+     * Overloaded operator = for assigning. Working with upcasting and downcasting.
+     * @param newMatrix source matrix.
+     * @return copy of assigned matrix.
+     */
+    SquareMatrix& operator=(SquareMatrix newMatrix){
+        Matrix* A = &newMatrix;
+        (Matrix&)(*this)=*A;
+        return *this;
+    }
+    /**
+     * Overloaded operator + to sum up two matrices.
+     * @param secondMatrix addend matrix.
+     * @return resulted matrix.
+     */
+    SquareMatrix operator+(SquareMatrix const secondMatrix){
+        auto* A = (Matrix*)(this);
+        auto* B = (Matrix*)(&secondMatrix);
+
+        Matrix newMatrix = *A + *B;
+        auto* result = (SquareMatrix*)(&newMatrix);
+        return *result;
+    }
+    /**
+     * Overloaded operator - to find a difference of two matrices.
+     * @param secondMatrix subtrahend matrix.
+     * @return resulted matrix.
+     */
+    SquareMatrix operator-(SquareMatrix const& secondMatrix){
+        auto* A = (Matrix*)(this);
+        auto* B = (Matrix*)(&secondMatrix);
+
+        Matrix newMatrix = *A - *B;
+        auto* result = (SquareMatrix*)(&newMatrix);
+        return *result;
+    }
+    /**
+     * Overloaded operator * to multiply two matrices.
+     * @param secondMatrix matrix on which present matrix will be multiplied
+     * @return resulted matrix
+     */
+    SquareMatrix operator*(SquareMatrix const& secondMatrix){
+        auto* A = (Matrix*)(this);
+        auto* B = (Matrix*)(&secondMatrix);
+
+        Matrix newMatrix = *A * *B;
+        auto* result = (SquareMatrix*)(&newMatrix);
+        return *result;
+    }
+    /**
+     * Method to find transpose of a matrix
+     * @return transposed matrix
+     */
+    SquareMatrix transpose() {
+        auto *transposedMatrix = (Matrix *)(this);
+        *transposedMatrix = transposedMatrix->transpose();
+        return *(SquareMatrix *) transposedMatrix;
+    }
+    /**
+     * Overloaded operator >> for inputting the square matrix.
+     * @param in input stream.
+     * @param newMatrix matrix that will be inputted.
+     * @return input stream
+     */
+    friend istream& operator>>(istream& in, SquareMatrix& newMatrix){
+        if(newMatrix.rows==0) {
+            in >> newMatrix.rows;
+            newMatrix.columns = newMatrix.rows;
+            for(int i = 0; i < newMatrix.rows; ++i){
+                vector<double> row;
+                for(int j = 0; j < newMatrix.columns; ++j){
+                    double temp;
+                    in>>temp;
+                    row.push_back(temp);
+                }
+                newMatrix.matrix.push_back(row);
+            }
+        }else {
+            for(int i = 0; i < newMatrix.rows; ++i) {
+                for (int j = 0; j < newMatrix.columns; ++j) {
+                    in >> newMatrix.matrix[i][j];
+                }
+            }
+        }
+
+        return in;
+    }
+    /**
+     * Overloaded operator << for outputting the square matrix.
+     * @param in output stream.
+     * @param newMatrix matrix that will be outputted.
+     * @return output stream
+     */
+    friend ostream& operator<<(ostream& out, SquareMatrix newMatrix){
+        for(int i = 0; i < newMatrix.rows; ++i){
+            for(int j = 0; j < newMatrix.columns; ++j){
+                out << (newMatrix.matrix[i][j]);
+                if(j != newMatrix.columns - 1){
+                    out << ' ';
+                }
+            }
+            out << endl;
+        }
+        return out;
+    }
+    double determinantByGauss();
+    SquareMatrix makeInverseMatrix();
+};
+class AugmentedMatrix: public Matrix{
+public:
+    AugmentedMatrix(Matrix& f, Matrix& s){
+        int colF = f.getColumns();
+        int rowsF = f.getRows();
+        int colS = s.getColumns();
+        int rowsS = s.getRows();
+        auto secondMatrix = s.getMatrix();
+        auto firstMatrix = f.getMatrix();
+        if(rowsF != rowsS){
+            throw new DimensionsError();
+        }
+        rows = rowsS;
+        columns = colF + colS;
+        matrix = vector<vector<double>>(rows, vector<double>(columns));
+        for(int i = 0; i < rowsS; ++i){
+            for(int j = 0; j < colF; ++j){
+                matrix[i][j] = firstMatrix[i][j];
+            }
+            for(int j = 0; j < colS; ++j){
+                matrix[i][j+colF] = secondMatrix[i][j];
+            }
+        }
+    }
+private:
+};
+class IdentityMatrix:public SquareMatrix{
+public:
+    IdentityMatrix(int n): SquareMatrix(0){
+        rows = n;
+        columns = n;
+        for(int i = 0; i < rows; ++i){
+            vector<double> row(rows, 0);
+            row[i] = 1;
+            matrix.push_back(row);
+        }
+    }
+    friend istream& operator>>(istream& in, IdentityMatrix newMatrix){
+        in>>newMatrix.rows;
+        newMatrix.columns = newMatrix.rows;
+        for(int i = 0; i < newMatrix.rows; ++i){
+            vector<double> row(newMatrix.rows, 0);
+            row[i] = 1;
+            newMatrix.matrix.push_back(row);
+        }
+        return in;
+    }
+    friend ostream& operator<<(ostream& out, IdentityMatrix newMatrix){
+        for(int i = 0; i < newMatrix.rows; ++i){
+            for(int j = 0; j < newMatrix.columns; ++j){
+                out << newMatrix.matrix[i][j];
+                if(j != newMatrix.columns - 1){
+                    out << ' ';
+                }
+            }
+            out << endl;
+        }
+        return out;
+    }
+};
+/**
+ * Class for elimination matrices.
+ */
+class Elimination: public Matrix{
+public:
+    /**
+     * Constructor to build elimination matrix for matrix A
+     * @param m matrix A
+     * @param j from which line line l will be subtracted.
+     * @param l line l is a subtrahend.
+     */
+    Elimination(Matrix& m, int line, int pivot, int column){
+        IdentityMatrix I(m.getRows());
+        matrix = I.getMatrix();
+        rows = m.getRows();
+        columns = rows;
+        matrix[line][column] = -1 * m.getMatrix()[line][column] / m.getMatrix()[pivot][column];
+    }
+    /**
+     * Overloaded operator for outputting the the elimination matrix.
+     * @param out output stream.
+     * @param newMatrix matrix to be outputted.
+     * @return output stream
+     */
+    friend ostream& operator<<(ostream& out, Elimination newMatrix){
+        for(int i = 0; i < newMatrix.rows; ++i){
+            for(int j = 0; j < newMatrix.columns; ++j){
+                out << (newMatrix.matrix[i][j]);
+                if(j != newMatrix.columns - 1){
+                    out << ' ';
+                }
+            }
+            out << endl;
+        }
+        return out;
+    }
+
+};
+/**
+ * Class for permutation matrix.
+ */
+class PermutationMatrix: public IdentityMatrix{
+public:
+    /**
+     * Constructor of permutation matrix of matrix A.
+     * @param A matrix to be permuted.
+     * @param i line i to be swapped
+     * @param j line j to be swapped
+     */
+    PermutationMatrix(const Matrix& A, int i, int j): IdentityMatrix(A.getRows()){
+        swap(matrix[i-1], matrix[j-1]);
+    }
+};
+/**
+ * Class for Collumn Vectors.
+ */
+class ColumnVector: public Matrix{
+public:
+    /**
+     * Column vector constructor via vector of vectors of type double
+     * @param vec vector representation of column vector.
+     */
+    explicit ColumnVector(vector<vector<double>>& vec){
+        matrix = vec;
+        rows = vec.size();
+        columns = 1;
+    }
+    explicit ColumnVector(vector<double>& vec){
+        ColumnVector column(vec.size());
+        for(int i = 0; i < vec.size(); ++i){
+            column.matrix[i][0] = vec[i];
+        }
+        matrix = column.matrix;
+        rows = column.rows;
+        columns = column.columns;
+    }
+    /**
+     * Default constructor. All fields nullified.
+     */
+    ColumnVector(){
+        rows = 0;
+        columns = 0;
+        matrix = vector<vector<double>>(0, vector<double>(0));
+    }
+    /**
+     * Constructor via number of columns.
+     * @param rowsNum number of columns
+     */
+    ColumnVector(int rowsNum){
+        rows = rowsNum;
+        columns = 1;
+        matrix = vector<vector<double>>(rows, vector<double>(1));
+    }
+    /**
+     * Overloaded operator = for assigning column vectors.
+     * @param newVector source column vector.
+     * @return copy of assigned column vector.
+     */
+    ColumnVector& operator=(ColumnVector const& newVector){
+        this->columns = newVector.columns;
+        this->rows = newVector.rows;
+        this->matrix = newVector.matrix;
+        return *this;
+    }
+    /**
+     * Overloaded operator + to sum up to column vectors.
+     * @param secondMatrix addend column vector.
+     * @return resulted column vector
+     */
+    ColumnVector operator+(ColumnVector const& secondMatrix){
+        Matrix newMatrix = *(Matrix*)(this) + *(Matrix*)(&secondMatrix);
+
+        return *(ColumnVector*)(&newMatrix);
+    }
+    /**
+     * Overloaded operator - to find a difference of column vectors.
+     * @param secondMatrix subtrahend column vector.
+     * @return resulted column vector
+     */
+    ColumnVector operator-(ColumnVector const& secondMatrix){
+        Matrix newMatrix = *(Matrix*)(this) - *(Matrix*)(&secondMatrix);
+
+        return *(ColumnVector*)(&newMatrix);
+    }
+    /**
+     * Overloaded operator * to find a product of column vector and matrix.
+     * @param secondMatrix factor matrix.
+     * @return resulted matrix.
+     */
+    Matrix operator*(Matrix& secondMatrix){
+        Matrix newMatrix = *(Matrix*)(this) * *(Matrix*)(&secondMatrix);
+        return *(ColumnVector*)(&newMatrix);
+    }
+    /**
+     * Overloaded operator >> for inputting column vectors.
+     * @param in input stream.
+     * @param newMatrix column vector to be inputted.
+     * @return input stream.
+     */
+    friend istream& operator>>(istream& in, ColumnVector& newMatrix){
+        if(newMatrix.rows == 0) {
+            in >> newMatrix.rows;
+            newMatrix.columns = 1;
+            vector<vector<double>> vec(newMatrix.rows, vector<double>(1));
+            newMatrix.matrix = vec;
+        }
+        for(int i = 0; i < newMatrix.rows; ++i){
+            in>>newMatrix.matrix[i][0];
+        }
+        return in;
+    }
+    /**
+     * Overloaded operator << for outputting column vectors.
+     * @param in output stream.
+     * @param newMatrix column vector to be outputted.
+     * @return output stream.
+     */
+    friend ostream& operator<<(ostream& out, ColumnVector& newMatrix){
+        for(int i = 0; i < newMatrix.rows; ++i){
+            out <<fixed<<setprecision(2)<< newMatrix.matrix[i][0]<<"\n";
+        }
+        return out;
+    }
+    /**
+     * Method to find norm column vector
+     * @return normed column vector
+     */
+    ColumnVector& norm(){
+        double factor=0;
+        for(int i = 0; i < rows; ++i){
+            factor += matrix[i][0]*matrix[i][0];
+        }
+        Matrix* result=this;
+        *result = (*(Matrix*)this*(1/factor));
+        return *((ColumnVector*)result);
+    }
+    /**
+     * Finding particular solution for matrix equation Sx=*this;
+     * @param S matrix S
+     */
+    void findASolution(SquareMatrix& S);
+};
+
+
+
+double SquareMatrix::determinantByGauss() {
+    double d = 1;
+    Matrix* temp = (Matrix*)(this);
+    int k = 1;
+    for(int i = 0; i < this->getRows(); ++i){
+        int index = i;
+        double MaximumValue = abs(temp->getMatrix()[i][i]);
+        for(int l = i+1; l < this->getRows(); ++l){
+            if(abs(temp->getMatrix()[l][i]) > MaximumValue){
+                MaximumValue = abs(temp->getMatrix()[l][i]);
+                index = l;
+            }
+        }
+        if(index!=i){
+            cout << "step"<<": permutation\n";
+            PermutationMatrix p(*temp, index+1, i+1);
+            *temp = p*((*(SquareMatrix*)temp));
+            cout << fixed << setprecision(2)<< *temp;
+            d*=-1;
+            k++;
+        }
+        for(int j = i+1; j < this->getRows(); ++j){
+            Elimination el(*temp, j, i, i);
+            *temp = el*(*temp);
+            cout << "step"<<": elimination\n";
+            cout << fixed << setprecision(2)<< *temp;
+            k++;
+        }
+    }
+    for(int i = 0; i < this->getRows(); ++i){
+        d *= temp->getMatrix()[i][i];
+    }
+    cout << "result:\n" << d;
+    return d;
+}
+SquareMatrix SquareMatrix::makeInverseMatrix() {
+    IdentityMatrix in = IdentityMatrix(this->getRows());
+    Matrix augmented = AugmentedMatrix(*this, in);
+    Matrix* temp = &augmented;
+    int k = 1;
+    for(int i = 0; i < this->getRows(); ++i){
+        int index = i;
+        double MaximumValue = abs(temp->getMatrix()[i][i]);
+        for(int l = i+1; l < this->getRows(); ++l){
+            if(abs(temp->getMatrix()[l][i]) > MaximumValue){
+                MaximumValue = temp->getMatrix()[l][i];
+                index = l;
+            }
+        }
+        if(index!=i){
+            PermutationMatrix p(*temp, index+1, i+1);
+            *temp = p*((*(SquareMatrix*)temp));
+            k++;
+        }
+        for(int j = i+1; j < this->getRows(); ++j){
+            if(abs(temp->getMatrix()[j][i]) != 0.000) {
+                Elimination el(*temp, j, i, i);
+                *temp = el * (*temp);
+                k++;
+            }
+        }
+    }
+    for(int i = this->getRows()-1; i >= 0; --i){
+        for(int j = i-1; j >= 0; --j){
+            Elimination el(*temp, j, i, i);
+            *temp = el*(*temp);
+            k++;
+        }
+    }
+    auto normalization = temp->getMatrix();
+    for(int i = 0; i < this->getRows(); ++i){
+        double el = normalization[i][i];
+        for(int j = i; j < 2*this->getColumns(); ++j){
+            normalization[i][j] = normalization[i][j]/el;
+        }
+    }
+    Matrix normalized(normalization);
+    vector<vector<double>> result(this->getRows(), vector<double>(this->getColumns()));
+    for(int i = 0; i < this->getRows(); ++i){
+        for(int j = this->getColumns(); j < 2*this->getColumns(); ++j){
+            result[i][j-this->getColumns()] = normalization[i][j];
+        }
+    }
+    Matrix resulted(result);
+    return  *(SquareMatrix*)(&resulted);
+}
+void ColumnVector::findASolution(SquareMatrix &S) {
+    //Declaration of pointers of base class matrix to perform operations via upcasting and downcasting.
+    Matrix* temp = &S;
+    Matrix* tempColum = this;
+    //Step 0 to output initial data
+    //cout << "step #" << 0 << ":\n";
+    //cout << *temp;
+    //cout << *tempColum;
+
+    //Counter of steps
+    int k = 1;
+    //Direct way of permutations and eliminations from up to bottom
+    for(int i = 0; i < S.getRows(); ++i){
+        bool inconsistent = true;
+        for(int h = 0; h < S.getRows(); ++h){
+            if(S.getMatrix()[i][h] != 0){
+                inconsistent = false;
+                break;
+            }
+        }
+        if(inconsistent && matrix[i][0] != 0){
+            cout << "NO\n";
+            exit(0);
+        }
+        if(inconsistent && matrix[i][0] == 0 && i != S.getRows()-1){
+            for(int h = i+1; h<S.getRows(); ++h){
+                PermutationMatrix p(*temp, h, h+1);
+                *temp = *(Matrix*)(&p)*(*temp);
+                *tempColum = *(Matrix*)(&p)*(*tempColum);
+            }
+        } else if(inconsistent && matrix[i][0] == 0 && i == S.getRows()-1){
+            cout << "INF\n";
+            exit(0);
+        }
+        int index = i;
+        double MaximumValue = abs(temp->getMatrix()[i][i]);
+        for(int l = i+1; l < S.getRows(); ++l){
+            if(abs(temp->getMatrix()[l][i]) > MaximumValue){
+                MaximumValue = temp->getMatrix()[l][i];
+                index = l;
+            }
+        }
+        if(index!=i){
+            //Making permutation if needed
+
+            //cout << "step #"<<k<<": permutation\n";
+            PermutationMatrix p(*temp, index+1, i+1);
+            *temp = p*((*(SquareMatrix*)temp));
+            *tempColum = *(Matrix*)(&p)*(*tempColum);
+            //cout << fixed << setprecision(4)<< *temp;
+            //cout << fixed << setprecision(4) << *tempColum;
+            k++;
+        }
+        //Making elimination if needed.
+        for(int j = i+1; j < S.getRows(); ++j){
+            if(abs(temp->getMatrix()[j][i]) != 0) {
+                Elimination el(*temp, j, i, i);
+                *temp = el * (*temp);
+                *tempColum = *(Matrix*)(&el)*(*tempColum);
+                //cout << "step #" << k << ": elimination\n";
+                //cout << fixed << setprecision(4) << *temp;
+                //cout << fixed << setprecision(4) << *tempColum;
+                k++;
+            }
+        }
+    }
+    //Way back from bottom to up.
+    for(int i = S.getRows()-1; i >= 0; --i){
+        bool inconsistent = true;
+        for(int h = 0; h < S.getRows(); ++h){
+            if(S.getMatrix()[i][h] != 0){
+                inconsistent = false;
+                break;
+            }
+        }
+        if(inconsistent && matrix[i][0] != 0){
+            cout << "NO\n";
+            exit(0);
+        }
+        //Making eliminations if needed
+        for(int j = i-1; j >= 0; --j){
+            if(abs(temp->getMatrix()[j][i]) != 0) {
+                Elimination el(*temp, j, i, i);
+                *temp = el * (*temp);
+                //cout << "step #" << k << ": elimination\n";
+                //cout << fixed << setprecision(4) << *temp;
+                *tempColum = *(Matrix *) (&el) * (*tempColum);
+                //cout << fixed << setprecision(4) << *tempColum;
+                k++;
+            }
+        }
+    }
+    //Checking whereas matrix equation has a solution, has not any solution, or has infinitely many solutions
+    bool haveInconsistentRow = false;
+    for(int i = 0; i < S.getRows(); ++i){
+        bool inconsistent = true;
+        for(int h = 0; h < S.getRows(); ++h){
+            if(temp->getMatrix()[i][h]!=0){
+                inconsistent = false;
+                break;
+            }
+        }
+        if(inconsistent && tempColum->getMatrix()[i][0]!=0){
+            cout << "NO\n";
+            exit(0);
+        } else if(inconsistent && tempColum->getMatrix()[i][0]==0){
+            haveInconsistentRow = true;
+        }
+    }
+    if(haveInconsistentRow){
+        cout << "INF\n";
+        exit(0);
+    }
+    auto normalization = temp->getMatrix();
+    auto columnNormalyzed = tempColum->getMatrix();
+    //Diagonal normalization
+    for(int i = 0; i < S.getRows(); ++i){
+        double el = normalization[i][i];
+        for(int j = i; j < S.getColumns(); ++j){
+            normalization[i][j] = normalization[i][j]/el;
+        }
+
+        columnNormalyzed[i][0] = columnNormalyzed[i][0]/el;
+
+    }
+    Matrix normalized(normalization);
+    ColumnVector relatedColumnVec(columnNormalyzed);
+    //cout << "Diagonal normalization:\n";
+    //cout << normalized;
+    //cout << relatedColumnVec;
+    //cout << "result:\n";
+
+    //Outputting the answer
+    cout << relatedColumnVec;
+}
+
+void leastSquareApproximation(int degree, vector<pair<double, double>>& coordinates) {
+    fprintf(pipe, "%s\n", "plot '-' using 1:2 title 'Least Squares' with points, \\");
+    fprintf(pipe, "%s\n", "'-' using 1:2 title 'Line' with lines");
+    for(auto& el: coordinates){
+        fprintf(pipe, "%lf\t%lf\n", el.first, el.second);
+    }
+    fprintf(pipe, "%s\n", "e");
+    fflush(pipe);
+    vector<vector<double>> matrix;
+    vector<double> row(degree+1);
+    vector<double> vColumn;
+    for(auto& el: coordinates){
+        double element = 1;
+        for(int i = 0; i < degree+1; ++i){
+            row[i] = element;
+            element*=el.first;
+        }
+        matrix.push_back(row);
+        vColumn.push_back(el.second);
+    }
+    Matrix A = Matrix(matrix);
+    Matrix A_T = A.transpose();
+    ColumnVector b(vColumn);
+    cout << "A:\n" << A;
+    Matrix A_TA = A_T*A;
+    cout << "A_T*A:\n" << A_TA;
+    auto* sq = (SquareMatrix*)(&A_TA);
+    SquareMatrix inverse = sq->makeInverseMatrix();
+    cout << "(A_T*A)^-1:\n" << inverse;
+    Matrix A_Tb = A_T*b;
+    cout << "A_T*b:\n" << A_Tb;
+    Matrix resulting = *(Matrix*)(&inverse)*A_Tb;
+    cout << "x~:\n"<<resulting;
+    double lower_bound = -10;
+    double upper_bound = 10;
+    int points = 100;
+    for(double el = lower_bound; el < upper_bound; el+=(upper_bound-lower_bound)/points) {
+        double element = 1;
+        double result = 0;
+        for (int i = 0; i < degree + 1; ++i) {
+            result += element*resulting.getMatrix()[i][0];
+            element *= el;
+        }
+        fprintf(pipe, "%lf\t%lf\n", el, result);
+
+    }
+    fprintf(pipe, "%s\n", "e");
+    fflush(pipe);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+int main(){
+    int m;
+    int degree;
+    cin >> m;
+    
+    //used test 
+    /*
+    /10
+    /-4 -9 -3 -2 -5 10 -6 8 7 -7 0 -9 -10 -1 7 -5 1 5 9 -2
+    /2
+    */
+    vector<pair<double, double>> coordinates(m);
+    for(int i = 0; i < m; ++i){
+        cin >> coordinates[i].first >> coordinates[i].second;
+    }
+    cin >> degree;
+    leastSquareApproximation(degree, coordinates);
+    return 0;
+
+}
